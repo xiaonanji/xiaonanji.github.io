@@ -1,10 +1,142 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" itemscope="" itemtype="http://schema.org/WebPage"><html>
-	<head>
-		<meta charset="UTF-8">
-		<title>FAQ</title>
-	</head>
-	<body>
-		Content of the document......
-	</body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Note Canvas</title>
+  <style>
+    body,html {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+    #canvas {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: #f0f0f0;
+      cursor: crosshair;
+    }
+    .note {
+      position: absolute;
+      width: 160px;
+      min-height: 100px;
+      background: #fff8b0;
+      border: 1px solid #e0d38e;
+      box-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+      padding: 4px;
+      cursor: move;
+    }
+    .note.selected {
+      border-color: #3399ff;
+    }
+    .note textarea {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: transparent;
+      resize: none;
+      outline: none;
+    }
+    #connections {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas">
+    <svg id="connections"></svg>
+  </div>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const svg = document.getElementById('connections');
+    let noteCounter = 0;
+    let connections = [];
+    let pendingNote = null;
+
+    canvas.addEventListener('dblclick', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const note = document.createElement('div');
+      note.className = 'note';
+      note.style.left = e.clientX - rect.left + 'px';
+      note.style.top = e.clientY - rect.top + 'px';
+      note.dataset.id = noteCounter++;
+      note.innerHTML = '<textarea placeholder="Write..."></textarea>';
+      canvas.appendChild(note);
+      makeDraggable(note);
+      note.addEventListener('click', handleNoteClick);
+    });
+
+    function makeDraggable(el) {
+      let offsetX, offsetY, dragging = false;
+      el.addEventListener('mousedown', (e) => {
+        if (e.target.tagName === 'TEXTAREA') return;
+        dragging = true;
+        offsetX = e.offsetX;
+        offsetY = e.offsetY;
+      });
+      document.addEventListener('mousemove', (e) => {
+        if (!dragging) return;
+        el.style.left = e.clientX - offsetX + 'px';
+        el.style.top = e.clientY - offsetY + 'px';
+        updateConnections(el);
+      });
+      document.addEventListener('mouseup', () => dragging = false);
+    }
+
+    function handleNoteClick(e) {
+      e.stopPropagation();
+      if (pendingNote && pendingNote !== this) {
+        pendingNote.classList.remove('selected');
+        createConnection(pendingNote, this);
+        pendingNote = null;
+      } else {
+        if (pendingNote === this) {
+          this.classList.remove('selected');
+          pendingNote = null;
+        } else {
+          if (pendingNote) pendingNote.classList.remove('selected');
+          pendingNote = this;
+          this.classList.add('selected');
+        }
+      }
+    }
+
+    function createConnection(a, b) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('stroke', '#333');
+      line.setAttribute('stroke-width', '2');
+      line.dataset.a = a.dataset.id;
+      line.dataset.b = b.dataset.id;
+      svg.appendChild(line);
+      connections.push(line);
+      updateLinePosition(line);
+    }
+
+    function updateLinePosition(line) {
+      const a = document.querySelector(`.note[data-id='${line.dataset.a}']`);
+      const b = document.querySelector(`.note[data-id='${line.dataset.b}']`);
+      const rectA = a.getBoundingClientRect();
+      const rectB = b.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+      line.setAttribute('x1', rectA.left + rectA.width/2 - canvasRect.left);
+      line.setAttribute('y1', rectA.top + rectA.height/2 - canvasRect.top);
+      line.setAttribute('x2', rectB.left + rectB.width/2 - canvasRect.left);
+      line.setAttribute('y2', rectB.top + rectB.height/2 - canvasRect.top);
+    }
+
+    function updateConnections(note) {
+      connections.forEach(line => {
+        if (line.dataset.a === note.dataset.id || line.dataset.b === note.dataset.id) {
+          updateLinePosition(line);
+        }
+      });
+    }
+  </script>
+</body>
 </html>
